@@ -1,4 +1,5 @@
 # Youtube_demos
+* auto-rag-optimizer/ - https://youtu.be/QzHlzg8ab-g - I Applied Karpathy's AutoResearch to My RAG Pipeline — It Doubled Its Score Overnight
 * dolphin-v2-test/ - https://youtu.be/Li7WsJzSNko - Dolphin v2: Free Alternative to Document Understanding APIs of Commercial Models
 * context-aware/ - https://youtu.be/zK6vWFmbkfA - How to Architect Context-Aware Multi-agents Using Google ADK with Practice
 * adk-graph/ - https://youtu.be/5YRfNhn3luI - Building a Real-time Graph-RAG Agent for Super-Fast Knowledge Search and Updates

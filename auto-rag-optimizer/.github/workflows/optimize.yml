@@ -1,0 +1,86 @@
+name: Auto-RAG-Optimizer
+
+on:
+  # Run every 10 minutes
+  schedule:
+    - cron: '*/10 * * * *'
+
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      max_runs:
+        description: 'Number of experiments per trigger'
+        required: false
+        default: '20'
+
+# Prevent overlapping runs
+concurrency:
+  group: rag-optimizer
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmagic1 poppler-utils tesseract-ocr
+
+      - name: Set up Python venv and install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Run optimizer (single experiment)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          source venv/bin/activate
+          MAX_RUNS=${{ github.event.inputs.max_runs || '1' }}
+          python orchestrator.py --max-runs "$MAX_RUNS" --interval 0
+
+      - name: Generate charts
+        if: always()
+        continue-on-error: true
+        run: |
+          source venv/bin/activate
+          python -c "from visualizer import generate_all_charts; generate_all_charts(html=True)"
+
+      - name: Commit results back to repo
+        if: always()
+        run: |
+          git config user.name "Auto-RAG-Optimizer[bot]"
+          git config user.email "auto-rag-optimizer[bot]@users.noreply.github.com"
+
+          # Add result files and FAISS cache
+          git add -f research_log.md config.json || true
+          git add -f best_config.json || true
+          git add -f charts/ || true
+          git add -f .faiss_index/ || true
+
+          # Check if there are changes to commit
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            EXPERIMENT_ID=$(tail -1 research_log.md | awk -F'|' '{print $2}' | xargs)
+            git commit -m "experiment #${EXPERIMENT_ID}: auto-optimize run [skip ci]"
+            git push
+          fi
